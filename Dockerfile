@@ -62,6 +62,10 @@ RUN set +x \
     && sed -i 's~127.0.0.1:2379~etcd:2379~g' ./conf/config-default.yaml \
     && sed -i 's~127.0.0.1:2379~etcd:2379~g' ./t/**/*.t
 
+# Remove apisix tests
+RUN find ./t/ -type f -and -name '*.t' -print0 | \
+    xargs -0 --no-run-if-empty rm -rf
+
 # Copy Plugin code and tests
 COPY ./apisix ./apisix
 COPY ./t ./t
@@ -80,4 +84,4 @@ prove -Itest-nginx/lib -I./ -r "$@" \n\
 
 ENTRYPOINT ["/run-tests.sh"]
 
-CMD [ "t/demo" ]
+CMD [ "t/" ]
