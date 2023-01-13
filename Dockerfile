@@ -1,13 +1,13 @@
 FROM api7/apisix-base:dev
 
-ARG APISIX_VERSION=2.15.1
+ARG APISIX_VERSION=3.1.0
 ENV APISIX_VERSION=${APISIX_VERSION}
 
 ENV DEBIAN_FRONTEND noninteractive
 
 # Dependencies where found in
-# https://github.com/apache/apisix-docker/blob/release/apisix-2.15.1/debian-dev/Dockerfile
-# https://github.com/apache/apisix/blob/2.15.1/ci/common.sh#L130
+# https://github.com/apache/apisix-docker/blob/release/apisix-3.1.0/debian-dev/Dockerfile
+# https://github.com/apache/apisix/blob/3.1.0/ci/common.sh#L132
 RUN set -x \
     && apt-get -y update --fix-missing \
     && apt-get install -y curl \
@@ -44,19 +44,23 @@ WORKDIR /usr/local/apisix-plugin-test
 RUN make deps \
     && mkdir logs
 
-ENV TEST_NGINX_BINARY="/usr/local/openresty/bin/openresty"
+# Configure env vars
+ENV OPENRESTY_PREFIX="/usr/local/openresty-debug"
+
+ENV TEST_NGINX_BINARY="${OPENRESTY_PREFIX}/bin/openresty" \
+    PATH="${OPENRESTY_PREFIX}/nginx/sbin:${OPENRESTY_PREFIX}/luajit/bin:${OPENRESTY_PREFIX}/bin:${PATH}"
 
 # Ensure we use the remote etcd
 ENV ETCD_VERSION="3.4.15" \
     ETCD_HOST="etcd" \
     ETCDCTL_ENDPOINTS="http://etcd:2379" \
-    ENABLE_LOCAL_DNS=true
+    ENABLE_LOCAL_DNS=true \
+    FLUSH_ETCD=1
 
 # Replace hardcoded etcd locations
 RUN set +x \
     && sed -i 's~127.0.0.1:2379~etcd:2379~g' ./conf/config-default.yaml \
     && sed -i 's~127.0.0.1:2379~etcd:2379~g' ./t/**/*.t
-#    && sed -i 's~127.0.0.1:2379~etcd:2379~g' ./t/**/*.sh
 
 # Copy Plugin code and tests
 COPY ./apisix ./apisix
@@ -65,8 +69,6 @@ COPY ./t ./t
 # Install the plugin into apisix
 RUN make install \
     && ./bin/apisix test
-
-ENV FLUSH_ETCD=1
 
 RUN printf '#!/bin/sh \n\
 set -ex \n\
